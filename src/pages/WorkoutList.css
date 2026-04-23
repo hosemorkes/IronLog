@@ -1,0 +1,99 @@
+.workout-list__header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.workout-list__title {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.workout-list__new {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #fff;
+  background: #7c6ef2;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.workout-list__new:hover {
+  filter: brightness(1.08);
+}
+
+.workout-list__new:active {
+  transform: scale(0.99);
+}
+
+.workout-list__empty {
+  margin: 2.5rem 0;
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.workout-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.workout-list__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 1rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: #1c1c1c;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.workout-list__card:hover {
+  border-color: rgba(124, 110, 242, 0.35);
+}
+
+.workout-list__card:active {
+  transform: scale(0.99);
+}
+
+.workout-list__card-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.workout-list__card-meta {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.workout-list__card-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.9;
+}

@@ -1,0 +1,180 @@
+.create-ex-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: create-ex-fade-in 0.2s ease;
+}
+
+@keyframes create-ex-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.create-ex-sheet {
+  width: 100%;
+  max-width: 430px;
+  max-height: min(92vh, 900px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  animation: create-ex-slide-up 0.28s ease;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+}
+
+@keyframes create-ex-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.create-ex-sheet__title {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.create-ex-sheet__scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.create-ex-field__label {
+  display: block;
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.create-ex-input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--text);
+  background: #252525;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.create-ex-input:focus {
+  border-color: #7c6ef2;
+  box-shadow: 0 0 0 2px rgba(124, 110, 242, 0.2);
+}
+
+.create-ex-input::placeholder {
+  color: #666;
+}
+
+.create-ex-textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.create-ex-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.create-ex-chip {
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.create-ex-chip--multi-off {
+  background: #252525;
+  color: #888;
+}
+
+.create-ex-chip--multi-on {
+  background: #7c6ef2;
+  color: #fff;
+}
+
+.create-ex-chip--single-off {
+  background: #252525;
+  color: #888;
+}
+
+.create-ex-chip--single-on {
+  background: #7c6ef2;
+  color: #fff;
+}
+
+.create-ex-actions {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 1.15rem;
+  padding-top: 0.25rem;
+}
+
+.create-ex-btn {
+  flex: 1;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+.create-ex-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.create-ex-btn--cancel {
+  color: var(--text);
+  background: #333;
+}
+
+.create-ex-btn--cancel:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.create-ex-btn--submit {
+  color: #fff;
+  background: #7c6ef2;
+}
+
+.create-ex-btn--submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}

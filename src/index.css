@@ -1,0 +1,147 @@
+:root {
+  color-scheme: dark;
+  --bg: #111111;
+  --accent: #7c6ef2;
+  --text: #f0f0f0;
+  --text-muted: #9a9a9a;
+  --surface: #1a1a1a;
+  --surface-elevated: #222222;
+  --border: #2e2e2e;
+  --bottom-nav-height: 4rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--text);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background-color: var(--bg);
+}
+
+#root {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 1rem 1rem calc(var(--bottom-nav-height) + var(--safe-bottom) + 0.75rem);
+}
+
+.page {
+  width: 100%;
+  min-width: 0;
+}
+
+.page-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  max-width: 430px;
+  margin: 0 auto;
+  height: calc(var(--bottom-nav-height) + var(--safe-bottom));
+  padding: 0.35rem 0.25rem var(--safe-bottom);
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border);
+}
+
+.bottom-nav__link {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: 0.5rem;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.bottom-nav__link:hover {
+  color: var(--text);
+  background: rgba(124, 110, 242, 0.08);
+}
+
+.bottom-nav__link--active {
+  color: var(--accent);
+}
+
+.bottom-nav__icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-nav__badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.28rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1rem;
+  color: #fff;
+  text-align: center;
+  background: #7c6ef2;
+  border-radius: 999px;
+  box-sizing: border-box;
+}
+
+.bottom-nav__icon {
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+}
+
+.bottom-nav__link span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
