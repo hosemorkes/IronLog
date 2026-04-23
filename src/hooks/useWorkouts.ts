@@ -1,82 +1,67 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { WorkoutTemplate } from '../types'
+import { deleteWorkoutTemplate, getWorkoutTemplates, saveWorkoutTemplate, subscribeDataChanged } from '../lib/db'
 
-export const WORKOUTS_STORAGE_KEY = 'ironlog_workouts'
+export { WORKOUTS_STORAGE_KEY } from '../lib/localData'
 
-type StoredWorkout = Omit<WorkoutTemplate, 'createdAt'> & { createdAt: string }
-
-function parseTemplates(raw: string | null): WorkoutTemplate[] {
-  if (!raw) return []
-  try {
-    const data = JSON.parse(raw) as StoredWorkout[]
-    if (!Array.isArray(data)) return []
-    return data.map((row) => ({
-      ...row,
-      createdAt: new Date(row.createdAt),
-    }))
-  } catch {
-    return []
-  }
+export async function getWorkouts(): Promise<WorkoutTemplate[]> {
+  return getWorkoutTemplates()
 }
 
-function serializeTemplates(list: WorkoutTemplate[]): string {
-  const stored: StoredWorkout[] = list.map((t) => ({
-    ...t,
-    createdAt: t.createdAt.toISOString(),
-  }))
-  return JSON.stringify(stored)
+export async function saveWorkout(template: WorkoutTemplate): Promise<void> {
+  await saveWorkoutTemplate(template)
 }
 
-export function getWorkouts(): WorkoutTemplate[] {
-  return parseTemplates(localStorage.getItem(WORKOUTS_STORAGE_KEY))
-}
-
-export function saveWorkout(template: WorkoutTemplate): void {
-  const list = getWorkouts()
-  const idx = list.findIndex((w) => w.id === template.id)
-  if (idx >= 0) {
-    list[idx] = template
-  } else {
-    list.push(template)
-  }
-  localStorage.setItem(WORKOUTS_STORAGE_KEY, serializeTemplates(list))
-}
-
-export function deleteWorkout(id: string): void {
-  const list = getWorkouts().filter((w) => w.id !== id)
-  localStorage.setItem(WORKOUTS_STORAGE_KEY, serializeTemplates(list))
+export async function deleteWorkout(id: string): Promise<void> {
+  await deleteWorkoutTemplate(id)
 }
 
 export function useWorkouts() {
-  const [tick, setTick] = useState(0)
+  const [workouts, setWorkouts] = useState<WorkoutTemplate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const workouts = useMemo(() => {
-    void tick
-    return getWorkouts()
-  }, [tick])
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const list = await getWorkoutTemplates()
+      setWorkouts(list)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ошибка загрузки')
+      setWorkouts([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const refresh = useCallback(() => setTick((t) => t + 1), [])
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  useEffect(() => subscribeDataChanged(() => void refresh()), [refresh])
 
   const saveWorkoutAndRefresh = useCallback(
-    (template: WorkoutTemplate) => {
-      saveWorkout(template)
-      refresh()
+    async (template: WorkoutTemplate) => {
+      await saveWorkoutTemplate(template)
+      await refresh()
     },
     [refresh],
   )
 
   const deleteWorkoutAndRefresh = useCallback(
-    (id: string) => {
-      deleteWorkout(id)
-      refresh()
+    async (id: string) => {
+      await deleteWorkoutTemplate(id)
+      await refresh()
     },
     [refresh],
   )
 
   return {
     workouts,
+    loading,
+    error,
     saveWorkout: saveWorkoutAndRefresh,
-    getWorkouts,
     deleteWorkout: deleteWorkoutAndRefresh,
     refresh,
   }

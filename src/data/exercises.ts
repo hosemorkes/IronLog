@@ -1,4 +1,3 @@
-import { loadCustomExercises } from '../lib/customExercises'
 import type { Exercise } from '../types'
 
 export const EXERCISES: Exercise[] = [
@@ -163,10 +162,7 @@ export const EXERCISES: Exercise[] = [
   },
 ]
 
+/** Только встроенные; кастомные — через getCustomExercises() / resolveExerciseById(). */
 export function getExerciseById(id: string): Exercise | undefined {
-  return EXERCISES.find((e) => e.id === id) ?? loadCustomExercises().find((e) => e.id === id)
-}
-
-export function getAllExercises(): Exercise[] {
-  return [...EXERCISES, ...loadCustomExercises()]
+  return EXERCISES.find((e) => e.id === id)
 }

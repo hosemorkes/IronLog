@@ -22,12 +22,20 @@ function exerciseCountLabel(n: number) {
 
 export default function WorkoutList() {
   const navigate = useNavigate()
-  const { workouts } = useWorkouts()
+  const { workouts, loading } = useWorkouts()
 
   const sorted = useMemo(
     () => [...workouts].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
     [workouts],
   )
+
+  if (loading) {
+    return (
+      <div className="workout-list page ironlog-page-loading" aria-busy="true">
+        <p className="ironlog-page-loading__text">Загрузка…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="workout-list page">

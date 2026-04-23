@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  getCustomExercises,
+  getPersonalRecords,
+  getWorkoutLogs,
+  getWorkoutTemplates,
+  subscribeDataChanged,
+} from '../lib/db'
+import type { PersonalRecord, WorkoutLogEntry, WorkoutTemplate } from '../types'
+import {
   ACHIEVEMENTS,
   buildWeekActivity,
   computeCurrentStreak,
@@ -16,18 +24,109 @@ import {
   percentChange,
   plannedSessionsThisWeek,
   previousWeekRange,
-  readPersonalRecords,
-  readWorkoutLogs,
-  readWorkoutTemplates,
   topPersonalRecords,
   totalTonnageFromLogs,
   tonnageInRange,
   weekRangeMonday,
 } from '../utils/stats'
+import type { DayActivity } from '../utils/stats'
 import './Progress.css'
 
-function useProgressDataRev() {
+type ProgressBundle = {
+  logs: WorkoutLogEntry[]
+  templates: WorkoutTemplate[]
+  prs: PersonalRecord[]
+  customNameById: Map<string, string>
+  totalTonnage: number
+  streak: number
+  thisWeekTon: number
+  lastWeekTon: number
+  tonPct: number | null
+  planned: number
+  doneWeek: number
+  prsWeek: number
+  monthCount: number
+  activity: DayActivity[]
+  maxDayTon: number
+  milestone: ReturnType<typeof getMilestoneProgress>
+  topPrs: PersonalRecord[]
+}
+
+async function buildProgressBundle(): Promise<ProgressBundle> {
+  const [logs, templates, prs, customExercises] = await Promise.all([
+    getWorkoutLogs(),
+    getWorkoutTemplates(),
+    getPersonalRecords(),
+    getCustomExercises(),
+  ])
+  const customNameById = new Map(customExercises.map((e) => [e.id, e.name]))
+  const totalTonnage = totalTonnageFromLogs(logs)
+  const streak = computeCurrentStreak(logs)
+  const now = new Date()
+  const { start: wStart, end: wEnd } = weekRangeMonday(now)
+  const { start: pStart, end: pEnd } = previousWeekRange(now)
+  const thisWeekTon = tonnageInRange(logs, wStart, wEnd)
+  const lastWeekTon = tonnageInRange(logs, pStart, pEnd)
+  const tonPct = percentChange(thisWeekTon, lastWeekTon)
+  const planned = plannedSessionsThisWeek(templates)
+  const doneWeek = logs.filter((l) => {
+    const t = new Date(l.savedAt).getTime()
+    return t >= wStart.getTime() && t <= wEnd.getTime()
+  }).length
+  const prsWeek = countPrsAchievedInWeek(prs, now)
+  const monthCount = countLogsThisMonth(logs, now)
+  const activity = buildWeekActivity(logs, now)
+  const maxDayTon = Math.max(...activity.map((d) => d.tonnage), 1)
+  const milestone = getMilestoneProgress(totalTonnage)
+  const topPrs = topPersonalRecords(prs, 3)
+
+  return {
+    logs,
+    templates,
+    prs,
+    customNameById,
+    totalTonnage,
+    streak,
+    thisWeekTon,
+    lastWeekTon,
+    tonPct,
+    planned,
+    doneWeek,
+    prsWeek,
+    monthCount,
+    activity,
+    maxDayTon,
+    milestone,
+    topPrs,
+  }
+}
+
+export default function Progress() {
+  const navigate = useNavigate()
   const [rev, setRev] = useState(0)
+  const [data, setData] = useState<ProgressBundle | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      setLoading(true)
+      try {
+        const bundle = await buildProgressBundle()
+        if (!cancelled) setData(bundle)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [rev])
+
+  useEffect(() => {
+    return subscribeDataChanged(() => setRev((r) => r + 1))
+  }, [])
+
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return
@@ -51,57 +150,6 @@ function useProgressDataRev() {
       document.removeEventListener('visibilitychange', onVis)
     }
   }, [])
-  return rev
-}
-
-export default function Progress() {
-  const navigate = useNavigate()
-  const rev = useProgressDataRev()
-
-  const data = useMemo(() => {
-    void rev
-    const logs = readWorkoutLogs()
-    const templates = readWorkoutTemplates()
-    const prs = readPersonalRecords()
-    const totalTonnage = totalTonnageFromLogs(logs)
-    const streak = computeCurrentStreak(logs)
-    const now = new Date()
-    const { start: wStart, end: wEnd } = weekRangeMonday(now)
-    const { start: pStart, end: pEnd } = previousWeekRange(now)
-    const thisWeekTon = tonnageInRange(logs, wStart, wEnd)
-    const lastWeekTon = tonnageInRange(logs, pStart, pEnd)
-    const tonPct = percentChange(thisWeekTon, lastWeekTon)
-    const planned = plannedSessionsThisWeek(templates)
-    const doneWeek = logs.filter((l) => {
-      const t = new Date(l.savedAt).getTime()
-      return t >= wStart.getTime() && t <= wEnd.getTime()
-    }).length
-    const prsWeek = countPrsAchievedInWeek(prs, now)
-    const monthCount = countLogsThisMonth(logs, now)
-    const activity = buildWeekActivity(logs, now)
-    const maxDayTon = Math.max(...activity.map((d) => d.tonnage), 1)
-    const milestone = getMilestoneProgress(totalTonnage)
-    const topPrs = topPersonalRecords(prs, 3)
-
-    return {
-      logs,
-      templates,
-      prs,
-      totalTonnage,
-      streak,
-      thisWeekTon,
-      lastWeekTon,
-      tonPct,
-      planned,
-      doneWeek,
-      prsWeek,
-      monthCount,
-      activity,
-      maxDayTon,
-      milestone,
-      topPrs,
-    }
-  }, [rev])
 
   const [toast, setToast] = useState<{ emoji: string; title: string } | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -114,15 +162,12 @@ export default function Progress() {
   }, [])
 
   useEffect(() => {
-    const logs = readWorkoutLogs()
-    const prs = readPersonalRecords()
-    const totalTonnage = totalTonnageFromLogs(logs)
-    const streak = computeCurrentStreak(logs)
+    if (!data) return
     const unlocked = computeUnlockedAchievementIds({
-      logs,
-      tonnage: totalTonnage,
-      prs,
-      currentStreak: streak,
+      logs: data.logs,
+      tonnage: data.totalTonnage,
+      prs: data.prs,
+      currentStreak: data.streak,
     })
     const { newIds } = detectNewAchievements(unlocked)
     if (newIds.length === 0) return
@@ -145,18 +190,25 @@ export default function Progress() {
     }
     showNext()
     return () => clearToastTimer()
-  }, [rev, clearToastTimer])
+  }, [data, clearToastTimer, rev])
 
-  const unlockedSet = useMemo(
-    () =>
-      computeUnlockedAchievementIds({
-        logs: data.logs,
-        tonnage: data.totalTonnage,
-        prs: data.prs,
-        currentStreak: data.streak,
-      }),
-    [data.logs, data.prs, data.totalTonnage, data.streak],
-  )
+  const unlockedSet = useMemo(() => {
+    if (!data) return new Set<string>()
+    return computeUnlockedAchievementIds({
+      logs: data.logs,
+      tonnage: data.totalTonnage,
+      prs: data.prs,
+      currentStreak: data.streak,
+    })
+  }, [data])
+
+  if (loading || !data) {
+    return (
+      <div className="page progress-page ironlog-page-loading" aria-busy="true">
+        <p className="ironlog-page-loading__text">Загрузка…</p>
+      </div>
+    )
+  }
 
   const tonnageSubtitle =
     data.tonPct === null
@@ -211,7 +263,13 @@ export default function Progress() {
         <h2 className="progress-tonnage-hero__title">Общий тоннаж</h2>
         <p className="progress-tonnage-hero__kg">{formatNumberKg(data.totalTonnage)} кг</p>
         <div className="progress-milestone-bar-wrap">
-          <div className="progress-milestone-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(data.milestone.percent)}>
+          <div
+            className="progress-milestone-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(data.milestone.percent)}
+          >
             <div className="progress-milestone-bar__fill" style={{ width: `${data.milestone.percent}%` }} />
           </div>
         </div>
@@ -287,7 +345,7 @@ export default function Progress() {
                 className={`progress-pr-row${isNew ? ' progress-pr-row--new' : ''}`}
               >
                 <span className="progress-pr-row__name">
-                  {exerciseNameForPr(pr)}
+                  {exerciseNameForPr(pr, data.customNameById)}
                   {isNew ? (
                     <span className="progress-pr-row__badge" aria-label="Новый рекорд">
                       🔥 Новый!

@@ -1,14 +1,13 @@
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useWorkout } from '../context/WorkoutContext'
-import { getExerciseById } from '../data/exercises'
-import { deleteCustomExercise } from '../lib/customExercises'
-import { readPersonalRecords, savePersonalRecords } from '../utils/stats'
+import type { Exercise } from '../types'
+import { deleteCustomExercise, deletePersonalRecordsForExercise, getExercisePR, resolveExerciseById } from '../lib/db'
 import './ExerciseDetail.css'
 
 /** Заглушка до данных из БД */
 const STATS = { totalSets: 0, workouts: 0, tonnageKg: 0 }
-const personalRecord: { kg: number; reps: number } | null = null
 
 function ExerciseHeroIllustration() {
   return (
@@ -33,7 +32,35 @@ export default function ExerciseDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { addExercise, currentWorkout, setCurrentWorkout } = useWorkout()
-  const exercise = id ? getExerciseById(id) : undefined
+  const [exercise, setExercise] = useState<Exercise | null | undefined>(undefined)
+  const [pr, setPr] = useState<{ kg: number; reps: number } | null>(null)
+
+  useEffect(() => {
+    if (!id) {
+      setExercise(null)
+      return
+    }
+    let cancelled = false
+    void resolveExerciseById(id).then((ex) => {
+      if (!cancelled) setExercise(ex ?? null)
+    })
+    void getExercisePR(id).then((rec) => {
+      if (!cancelled) {
+        setPr(rec ? { kg: rec.weight, reps: rec.reps } : null)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  if (exercise === undefined) {
+    return (
+      <div className="exercise-detail ironlog-page-loading" aria-busy="true">
+        <p className="ironlog-page-loading__text">Загрузка…</p>
+      </div>
+    )
+  }
 
   if (!exercise) {
     return <Navigate to="/exercises" replace />
@@ -48,10 +75,12 @@ export default function ExerciseDetail() {
   const handleDelete = () => {
     if (!exercise.isCustom) return
     if (!window.confirm('Удалить упражнение? Это действие нельзя отменить')) return
-    deleteCustomExercise(exercise.id)
-    setCurrentWorkout((prev) => prev.filter((w) => w.exercise.id !== exercise.id))
-    savePersonalRecords(readPersonalRecords().filter((p) => p.exerciseId !== exercise.id))
-    navigate('/exercises', { replace: true })
+    void (async () => {
+      await deleteCustomExercise(exercise.id)
+      await deletePersonalRecordsForExercise(exercise.id)
+      setCurrentWorkout((prev) => prev.filter((w) => w.exercise.id !== exercise.id))
+      navigate('/exercises', { replace: true })
+    })()
   }
 
   const [primaryMuscle, ...secondaryMuscles] = exercise.muscleGroups
@@ -112,9 +141,9 @@ export default function ExerciseDetail() {
 
         <section className="exercise-detail__card exercise-detail__pr" aria-label="Личный рекорд">
           <h2 className="exercise-detail__card-title">Личный рекорд</h2>
-          {personalRecord ? (
+          {pr ? (
             <p className="exercise-detail__pr-value">
-              {personalRecord.kg} кг × {personalRecord.reps} повт.
+              {pr.kg} кг × {pr.reps} повт.
             </p>
           ) : (
             <p className="exercise-detail__pr-empty">Ещё нет рекорда. Вперёд!</p>

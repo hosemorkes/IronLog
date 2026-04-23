@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import CreateExerciseModal from '../components/CreateExerciseModal'
 import { useWorkout } from '../context/WorkoutContext'
 import { EXERCISES } from '../data/exercises'
-import { loadCustomExercises } from '../lib/customExercises'
+import { getCustomExercises, subscribeDataChanged } from '../lib/db'
 import type { Exercise, ExerciseMuscleGroup, ExerciseSelectNavState, WorkoutBuilderPickState } from '../types'
 import './ExerciseLibrary.css'
 
@@ -31,12 +31,29 @@ export default function ExerciseLibrary() {
   const [query, setQuery] = useState('')
   const [muscleFilter, setMuscleFilter] = useState<'Все' | ExerciseMuscleGroup>('Все')
   const [createOpen, setCreateOpen] = useState(false)
-  const [customTick, setCustomTick] = useState(0)
+  const [customExercises, setCustomExercises] = useState<Exercise[]>([])
+  const [loadingCustom, setLoadingCustom] = useState(true)
 
-  const allExercises = useMemo(() => {
-    void customTick
-    return [...EXERCISES, ...loadCustomExercises()]
-  }, [customTick])
+  const refreshCustom = useCallback(async () => {
+    setLoadingCustom(true)
+    try {
+      const list = await getCustomExercises()
+      setCustomExercises(list)
+    } finally {
+      setLoadingCustom(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshCustom()
+  }, [refreshCustom])
+
+  useEffect(() => subscribeDataChanged(() => void refreshCustom()), [refreshCustom])
+
+  const allExercises = useMemo(
+    () => [...EXERCISES, ...customExercises],
+    [customExercises],
+  )
 
   const filtered = useMemo(() => {
     const nq = normalizeQuery(query)
@@ -60,6 +77,14 @@ export default function ExerciseLibrary() {
     navigate(`/exercises/${ex.id}`)
   }
 
+  if (loadingCustom) {
+    return (
+      <div className="page exercise-library ironlog-page-loading" aria-busy="true">
+        <p className="ironlog-page-loading__text">Загрузка…</p>
+      </div>
+    )
+  }
+
   return (
     <div className="page exercise-library">
       <div className="exercise-library__top">
@@ -79,7 +104,7 @@ export default function ExerciseLibrary() {
       <CreateExerciseModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={() => setCustomTick((t) => t + 1)}
+        onCreated={() => void refreshCustom()}
       />
 
       <input

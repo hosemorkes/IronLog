@@ -5,7 +5,7 @@ import type {
   ExerciseEquipment,
   ExerciseMuscleGroup,
 } from '../types'
-import { addCustomExercise } from '../lib/customExercises'
+import { saveCustomExercise } from '../lib/db'
 import './CreateExerciseModal.css'
 
 const MUSCLE_OPTIONS: ExerciseMuscleGroup[] = ['Грудь', 'Спина', 'Ноги', 'Плечи', 'Руки', 'Кор']
@@ -89,9 +89,10 @@ export default function CreateExerciseModal({ open, onClose, onCreated }: Create
       instructions,
       isCustom: true,
     }
-    addCustomExercise(ex)
-    onCreated()
-    onClose()
+    void saveCustomExercise(ex).then(() => {
+      onCreated()
+      onClose()
+    })
   }
 
   if (!open) return null

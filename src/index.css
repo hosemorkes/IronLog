@@ -58,6 +58,19 @@ body {
   min-width: 0;
 }
 
+.ironlog-page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  color: var(--text-muted);
+}
+
+.ironlog-page-loading__text {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
 .page-title {
   margin: 0 0 0.75rem;
   font-size: 1.375rem;

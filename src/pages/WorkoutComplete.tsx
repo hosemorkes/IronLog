@@ -17,6 +17,7 @@ type WorkoutCompleteProps = {
   onSaveLog: () => void
   onHome: () => void
   saved: boolean
+  savePending?: boolean
 }
 
 function formatDuration(sec: number) {
@@ -39,6 +40,7 @@ export default function WorkoutComplete({
   onSaveLog,
   onHome,
   saved,
+  savePending = false,
 }: WorkoutCompleteProps) {
   const hasPr = newPrLabels.length > 0
   const prText = useMemo(() => newPrLabels.join(', '), [newPrLabels])
@@ -220,9 +222,9 @@ export default function WorkoutComplete({
           type="button"
           className="workout-complete__btn workout-complete__btn--primary"
           onClick={onSaveLog}
-          disabled={saved}
+          disabled={saved || savePending}
         >
-          {saved ? 'Сохранено' : 'Подтвердить и сохранить'}
+          {saved ? 'Сохранено' : savePending ? 'Сохранение…' : 'Подтвердить и сохранить'}
         </button>
         <button type="button" className="workout-complete__btn workout-complete__btn--ghost" onClick={onHome}>
           На главную

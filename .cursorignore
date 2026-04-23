@@ -1,0 +1,16 @@
+# Зависимости и сборка
+node_modules/
+dist/
+dist-ssr/
+
+# Временные файлы проекта
+temp/
+
+# Секреты
+.env
+.env.*
+
+# Артефакты
+coverage/
+*.tsbuildinfo
+.eslintcache

@@ -1,14 +1,21 @@
-import { getExerciseById } from '../data/exercises'
+import { EXERCISES } from '../data/exercises'
+import {
+  localGetWorkoutTemplates as readWorkoutTemplates,
+  localReadPersonalRecords as readPersonalRecords,
+  localReadWorkoutLogs as readWorkoutLogs,
+  localSavePersonalRecords as savePersonalRecords,
+  localSaveWorkoutLogs as saveWorkoutLogs,
+  LOGS_STORAGE_KEYS,
+  WORKOUTS_STORAGE_KEY,
+} from '../lib/localData'
 import type { WorkoutStep } from '../lib/workoutExecution'
 import type { PersonalRecord, WorkoutExercise, WorkoutLogEntry, WorkoutTemplate } from '../types'
 
-export const LOGS_STORAGE_KEYS = ['ironlog_logs', 'ironlog_workout_logs'] as const
-export const WORKOUTS_STORAGE_KEY = 'ironlog_workouts'
+export { LOGS_STORAGE_KEYS, WORKOUTS_STORAGE_KEY }
+export { readWorkoutTemplates, readWorkoutLogs, readPersonalRecords, savePersonalRecords, saveWorkoutLogs }
 
 const ACHIEVEMENT_SNAPSHOT_KEY = 'ironlog_progress_achievement_snapshot'
 const PROGRESS_FIRST_VISIT_KEY = 'ironlog_progress_first_visit_done'
-
-type StoredWorkout = Omit<WorkoutTemplate, 'createdAt'> & { createdAt: string }
 
 export type TonnageMilestone = { kg: number; name: string; emoji: string }
 
@@ -56,103 +63,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'workouts_100', name: '100 тренировок', emoji: '👑', check: (c) => c.logs.length >= 100 },
 ]
 
-function parseWorkoutsRaw(raw: string | null): WorkoutTemplate[] {
-  if (!raw) return []
-  try {
-    const data = JSON.parse(raw) as StoredWorkout[]
-    if (!Array.isArray(data)) return []
-    return data.map((row) => ({
-      ...row,
-      createdAt: new Date(row.createdAt),
-    }))
-  } catch {
-    return []
-  }
-}
-
-export function readWorkoutTemplates(): WorkoutTemplate[] {
-  return parseWorkoutsRaw(localStorage.getItem(WORKOUTS_STORAGE_KEY))
-}
-
-export function readWorkoutLogs(): WorkoutLogEntry[] {
-  for (const key of LOGS_STORAGE_KEYS) {
-    const raw = localStorage.getItem(key)
-    if (!raw) continue
-    try {
-      const o = JSON.parse(raw) as WorkoutLogEntry[]
-      if (Array.isArray(o)) return o
-    } catch {
-      continue
-    }
-  }
-  return []
-}
-
-function parseLegacyPrMap(raw: string | null): Record<string, number> | null {
-  if (!raw) return null
-  try {
-    const o = JSON.parse(raw) as unknown
-    if (!o || typeof o !== 'object' || Array.isArray(o)) return null
-    const rec: Record<string, number> = {}
-    for (const [k, v] of Object.entries(o)) {
-      if (typeof v === 'number' && Number.isFinite(v)) rec[k] = v
-    }
-    return rec
-  } catch {
-    return null
-  }
-}
-
-function legacyMapToRecords(map: Record<string, number>, fallbackAt: string): PersonalRecord[] {
-  return Object.entries(map).map(([exerciseId, weight]) => ({
-    exerciseId,
-    weight,
-    reps: 0,
-    achievedAt: fallbackAt,
-  }))
-}
-
-/** Читает PR: массив из `ironlog_prs` или миграция из legacy Record. */
-export function readPersonalRecords(): PersonalRecord[] {
-  const primary = localStorage.getItem('ironlog_prs')
-  if (primary) {
-    try {
-      const o = JSON.parse(primary) as unknown
-      if (Array.isArray(o)) {
-        return o
-          .map((row) => row as PersonalRecord)
-          .filter(
-            (r) =>
-              r &&
-              typeof r.exerciseId === 'string' &&
-              typeof r.weight === 'number' &&
-              typeof r.achievedAt === 'string',
-          )
-          .map((r) => ({
-            exerciseId: r.exerciseId,
-            weight: r.weight,
-            reps: typeof r.reps === 'number' ? r.reps : 0,
-            achievedAt: r.achievedAt,
-          }))
-      }
-      const asMap = parseLegacyPrMap(primary)
-      if (asMap) {
-        return legacyMapToRecords(asMap, new Date(0).toISOString())
-      }
-    } catch {
-      /* fallthrough */
-    }
-  }
-
-  const legacy = parseLegacyPrMap(localStorage.getItem('ironlog_exercise_prs'))
-  if (legacy) return legacyMapToRecords(legacy, new Date(0).toISOString())
-  return []
-}
-
-export function savePersonalRecords(prs: PersonalRecord[]): void {
-  localStorage.setItem('ironlog_prs', JSON.stringify(prs))
-}
-
 export function prsArrayToMaxWeightMap(prs: PersonalRecord[]): Record<string, number> {
   const o: Record<string, number> = {}
   for (const pr of prs) {
@@ -182,10 +92,6 @@ export function upgradeSessionPRs(
     }
   }
   return [...byId.values()]
-}
-
-export function saveWorkoutLogs(logs: WorkoutLogEntry[]): void {
-  localStorage.setItem('ironlog_logs', JSON.stringify(logs))
 }
 
 export function dateKeyLocal(d: Date): string {
@@ -380,8 +286,10 @@ export function buildWeekActivity(logs: WorkoutLogEntry[], now: Date = new Date(
   return out
 }
 
-export function exerciseNameForPr(pr: PersonalRecord): string {
-  return getExerciseById(pr.exerciseId)?.name ?? pr.exerciseId
+export function exerciseNameForPr(pr: PersonalRecord, customNameById?: Map<string, string>): string {
+  const built = EXERCISES.find((e) => e.id === pr.exerciseId)
+  if (built) return built.name
+  return customNameById?.get(pr.exerciseId) ?? pr.exerciseId
 }
 
 export function topPersonalRecords(prs: PersonalRecord[], limit: number): PersonalRecord[] {

@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { buildWorkoutSteps, getRestAfterStep, type WorkoutStep } from '../lib/workoutExecution'
-import type { ActiveWorkoutLocationState, WorkoutExercise } from '../types'
+import type { ActiveWorkoutLocationState, PersonalRecord, WorkoutExercise } from '../types'
+import { getPersonalRecords, savePersonalRecordsBatch, saveWorkoutLog, subscribeDataChanged } from '../lib/db'
 import {
   computeSessionBestByExercise,
   prsArrayToMaxWeightMap,
-  readPersonalRecords,
-  readWorkoutLogs,
-  savePersonalRecords,
-  saveWorkoutLogs,
   upgradeSessionPRs,
 } from '../utils/stats'
 import WorkoutComplete from './WorkoutComplete'
@@ -78,9 +75,11 @@ export default function ActiveWorkout() {
   const [restState, setRestState] = useState<{ left: number; total: number } | null>(null)
   const [restKey, setRestKey] = useState(0)
   const [logSaved, setLogSaved] = useState(false)
+  const [saveLogPending, setSaveLogPending] = useState(false)
   const [editingDoneKey, setEditingDoneKey] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<{ weight: number; reps: number } | null>(null)
   const [hintDismissed, setHintDismissed] = useState(false)
+  const [prsSnapshot, setPrsSnapshot] = useState<PersonalRecord[]>([])
 
   const activeInputRef = useRef<HTMLInputElement | null>(null)
   const editDoneInputRef = useRef<HTMLInputElement | null>(null)
@@ -143,6 +142,15 @@ export default function ActiveWorkout() {
     }
     return steps.length
   }, [steps, completed])
+
+  useEffect(() => {
+    void getPersonalRecords().then(setPrsSnapshot)
+  }, [boot])
+
+  useEffect(() => {
+    if (boot !== 'ok') return
+    return subscribeDataChanged(() => void getPersonalRecords().then(setPrsSnapshot))
+  }, [boot])
 
   useEffect(() => {
     if (boot !== 'ok') return
@@ -265,7 +273,7 @@ export default function ActiveWorkout() {
     const setsDone = completed.size
     const exCount = uniqueExerciseCount
     const sessionBest = computeSessionBestByExercise(steps, completed, working)
-    const oldPrs = prsArrayToMaxWeightMap(readPersonalRecords())
+    const oldPrs = prsArrayToMaxWeightMap(prsSnapshot)
     const newPrLabels: string[] = []
     for (const [exId, best] of sessionBest) {
       if (best.weight > (oldPrs[exId] ?? 0)) {
@@ -281,12 +289,13 @@ export default function ActiveWorkout() {
       newPrLabels,
       sessionBest,
     }
-  }, [steps, completed, working, elapsed, uniqueExerciseCount])
+  }, [steps, completed, working, elapsed, uniqueExerciseCount, prsSnapshot])
 
   const handleSaveLog = useCallback(() => {
-    const logs = readWorkoutLogs()
+    if (saveLogPending || logSaved) return
+    setSaveLogPending(true)
     const savedAt = new Date().toISOString()
-    logs.push({
+    const entry = {
       id: crypto.randomUUID(),
       savedAt,
       name,
@@ -294,14 +303,16 @@ export default function ActiveWorkout() {
       tonnage: Math.round(completionStats.tonnage),
       setsCompleted: completionStats.setsCompleted,
       exerciseCount: completionStats.exerciseCount,
-    })
-    saveWorkoutLogs(logs)
-
-    const merged = upgradeSessionPRs(readPersonalRecords(), completionStats.sessionBest, savedAt)
-    savePersonalRecords(merged)
-    clearPersistedSession()
-    setLogSaved(true)
-  }, [name, completionStats])
+    }
+    const merged = upgradeSessionPRs(prsSnapshot, completionStats.sessionBest, savedAt)
+    void Promise.all([saveWorkoutLog(entry), savePersonalRecordsBatch(merged)])
+      .then(() => {
+        setPrsSnapshot(merged)
+        clearPersistedSession()
+        setLogSaved(true)
+      })
+      .finally(() => setSaveLogPending(false))
+  }, [name, completionStats, prsSnapshot, saveLogPending, logSaved])
 
   const handleHome = useCallback(() => {
     clearPersistedSession()
@@ -336,6 +347,7 @@ export default function ActiveWorkout() {
         onSaveLog={handleSaveLog}
         onHome={handleHome}
         saved={logSaved}
+        savePending={saveLogPending}
       />
     )
   }

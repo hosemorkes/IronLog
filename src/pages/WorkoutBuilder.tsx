@@ -173,20 +173,26 @@ export default function WorkoutBuilder() {
       return
     }
     if (routeId) {
-      const found = getWorkouts().find((w) => w.id === routeId)
-      if (!found) {
-        navigate('/workout', { replace: true })
-        return
-      }
-      setWorkoutName(found.name)
-      setExercises(
-        found.exercises.map((w) => ({
-          ...w,
-          sets: ensureThreeSets(w.sets),
-        })),
-      )
-      setOriginalCreatedAt(found.createdAt)
-      setHydrated(true)
+      void getWorkouts()
+        .then((list) => {
+          const found = list.find((w) => w.id === routeId)
+          if (!found) {
+            navigate('/workout', { replace: true })
+            return
+          }
+          setWorkoutName(found.name)
+          setExercises(
+            found.exercises.map((w) => ({
+              ...w,
+              sets: ensureThreeSets(w.sets),
+            })),
+          )
+          setOriginalCreatedAt(found.createdAt)
+          setHydrated(true)
+        })
+        .catch(() => {
+          navigate('/workout', { replace: true })
+        })
     }
   }, [isNew, routeId, navigate, location.key])
 
@@ -238,11 +244,12 @@ export default function WorkoutBuilder() {
       exercises,
       createdAt: originalCreatedAt ?? new Date(),
     }
-    saveWorkout(template)
-    if (isNew) clearWorkout()
-    setToast(true)
-    window.setTimeout(() => setToast(false), 2000)
-    window.setTimeout(() => navigate('/workout'), 2000)
+    void saveWorkout(template).then(() => {
+      if (isNew) clearWorkout()
+      setToast(true)
+      window.setTimeout(() => setToast(false), 2000)
+      window.setTimeout(() => navigate('/workout'), 2000)
+    })
   }
 
   const handleClearAll = () => {
