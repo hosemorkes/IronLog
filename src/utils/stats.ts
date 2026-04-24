@@ -73,7 +73,7 @@ export function prsArrayToMaxWeightMap(prs: PersonalRecord[]): Record<string, nu
 
 export function upgradeSessionPRs(
   existing: PersonalRecord[],
-  sessionBest: Map<string, { weight: number; reps: number }>,
+  sessionBest: Map<string, { weight: number; reps: number; exerciseName: string }>,
   savedAt: string,
 ): PersonalRecord[] {
   const byId = new Map<string, PersonalRecord>()
@@ -85,6 +85,7 @@ export function upgradeSessionPRs(
     if (!cur || best.weight > cur.weight) {
       byId.set(exId, {
         exerciseId: exId,
+        exerciseName: best.exerciseName,
         weight: best.weight,
         reps: best.reps,
         achievedAt: savedAt,
@@ -287,6 +288,8 @@ export function buildWeekActivity(logs: WorkoutLogEntry[], now: Date = new Date(
 }
 
 export function exerciseNameForPr(pr: PersonalRecord, customNameById?: Map<string, string>): string {
+  const fromPr = pr.exerciseName?.trim()
+  if (fromPr) return fromPr
   const built = EXERCISES.find((e) => e.id === pr.exerciseId)
   if (built) return built.name
   return customNameById?.get(pr.exerciseId) ?? pr.exerciseId
@@ -375,8 +378,8 @@ export function computeSessionBestByExercise(
   steps: WorkoutStep[],
   completed: Set<number>,
   working: WorkoutExercise[],
-): Map<string, { weight: number; reps: number }> {
-  const m = new Map<string, { weight: number; reps: number }>()
+): Map<string, { weight: number; reps: number; exerciseName: string }> {
+  const m = new Map<string, { weight: number; reps: number; exerciseName: string }>()
   for (const st of steps) {
     if (!completed.has(st.globalIndex)) continue
     const we = working[st.exerciseIndex]
@@ -385,7 +388,8 @@ export function computeSessionBestByExercise(
     const r = Number(s.reps)
     const id = we.exercise.id
     const cur = m.get(id)
-    if (!cur || w > cur.weight) m.set(id, { weight: w, reps: r })
+    if (!cur || w > cur.weight)
+      m.set(id, { weight: w, reps: r, exerciseName: we.exercise.name })
   }
   return m
 }

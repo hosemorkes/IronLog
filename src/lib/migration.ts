@@ -1,3 +1,4 @@
+import { personalRecordToSupabaseRow } from './db'
 import { supabase } from './supabase'
 import {
   CUSTOM_EXERCISES_KEY,
@@ -57,12 +58,7 @@ export async function migrateFromLocalStorage(): Promise<void> {
 
     const prs = localReadPersonalRecords()
     if (prs.length) {
-      const rows = prs.map((p) => ({
-        exercise_id: p.exerciseId,
-        weight: p.weight,
-        reps: p.reps,
-        achieved_at: p.achievedAt,
-      }))
+      const rows = prs.map(personalRecordToSupabaseRow)
       const { error } = await supabase.from('personal_records').upsert(rows, { onConflict: 'exercise_id' })
       if (error) throw error
     }

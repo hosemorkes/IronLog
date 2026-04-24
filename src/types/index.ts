@@ -74,6 +74,8 @@ export interface WorkoutLogEntry {
 /** Личный рекорд (хранится в localStorage `ironlog_prs`) */
 export interface PersonalRecord {
   exerciseId: string
+  /** Подпись для UI и колонки exercise_name в Supabase */
+  exerciseName?: string
   weight: number
   reps: number
   achievedAt: string

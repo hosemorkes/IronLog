@@ -14,6 +14,34 @@ import {
   localSaveWorkoutTemplate,
 } from './localData'
 
+function resolvePrExerciseName(pr: PersonalRecord): string {
+  const explicit = pr.exerciseName?.trim()
+  if (explicit) return explicit
+  const built = getBuiltInExerciseById(pr.exerciseId)
+  if (built) return built.name
+  for (const e of localGetCustomExercises()) {
+    if (e.id === pr.exerciseId) return e.name
+  }
+  return pr.exerciseId
+}
+
+/** Строка для Supabase: все NOT NULL поля, включая exercise_name. */
+export function personalRecordToSupabaseRow(pr: PersonalRecord): {
+  exercise_id: string
+  exercise_name: string
+  weight: number
+  reps: number
+  achieved_at: string
+} {
+  return {
+    exercise_id: pr.exerciseId,
+    exercise_name: resolvePrExerciseName(pr),
+    weight: pr.weight,
+    reps: pr.reps,
+    achieved_at: pr.achievedAt,
+  }
+}
+
 export type WorkoutLog = WorkoutLogEntry
 
 const CHANGED = 'ironlog-db-changed'
@@ -63,12 +91,14 @@ function mapLogRow(row: {
 
 function mapPrRow(row: {
   exercise_id: string
+  exercise_name?: string | null
   weight: number
   reps: number
   achieved_at: string
 }): PersonalRecord {
   return {
     exerciseId: row.exercise_id,
+    ...(row.exercise_name ? { exerciseName: row.exercise_name } : {}),
     weight: row.weight,
     reps: row.reps,
     achievedAt: row.achieved_at,
@@ -178,7 +208,7 @@ export async function getPersonalRecords(): Promise<PersonalRecord[]> {
   try {
     const { data, error } = await supabase
       .from('personal_records')
-      .select('exercise_id,weight,reps,achieved_at')
+      .select('exercise_id,exercise_name,weight,reps,achieved_at')
     if (error) throw error
     return (data ?? []).map(mapPrRow)
   } catch {
@@ -197,15 +227,9 @@ export async function savePersonalRecord(pr: PersonalRecord): Promise<void> {
     return
   }
   try {
-    const { error } = await supabase.from('personal_records').upsert(
-      {
-        exercise_id: pr.exerciseId,
-        weight: pr.weight,
-        reps: pr.reps,
-        achieved_at: pr.achievedAt,
-      },
-      { onConflict: 'exercise_id' },
-    )
+    const { error } = await supabase
+      .from('personal_records')
+      .upsert(personalRecordToSupabaseRow(pr), { onConflict: 'exercise_id' })
     if (error) throw error
     notifyDataChanged()
   } catch {
@@ -226,12 +250,7 @@ export async function savePersonalRecordsBatch(prs: PersonalRecord[]): Promise<v
     return
   }
   try {
-    const rows = prs.map((pr) => ({
-      exercise_id: pr.exerciseId,
-      weight: pr.weight,
-      reps: pr.reps,
-      achieved_at: pr.achievedAt,
-    }))
+    const rows = prs.map(personalRecordToSupabaseRow)
     const { error } = await supabase.from('personal_records').upsert(rows, { onConflict: 'exercise_id' })
     if (error) throw error
     notifyDataChanged()
@@ -248,7 +267,7 @@ export async function getExercisePR(exerciseId: string): Promise<PersonalRecord 
   try {
     const { data, error } = await supabase
       .from('personal_records')
-      .select('exercise_id,weight,reps,achieved_at')
+      .select('exercise_id,exercise_name,weight,reps,achieved_at')
       .eq('exercise_id', exerciseId)
       .maybeSingle()
     if (error) throw error

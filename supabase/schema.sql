@@ -21,6 +21,7 @@ create index if not exists workout_logs_saved_at_idx on public.workout_logs (sav
 
 create table if not exists public.personal_records (
   exercise_id text primary key,
+  exercise_name text not null,
   weight double precision not null,
   reps integer not null default 0,
   achieved_at timestamptz not null

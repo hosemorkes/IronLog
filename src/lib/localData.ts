@@ -113,6 +113,9 @@ export function localReadPersonalRecords(): PersonalRecord[] {
           )
           .map((r) => ({
             exerciseId: r.exerciseId,
+            ...(typeof r.exerciseName === 'string' && r.exerciseName
+              ? { exerciseName: r.exerciseName }
+              : {}),
             weight: r.weight,
             reps: typeof r.reps === 'number' ? r.reps : 0,
             achievedAt: r.achievedAt,
